@@ -21,7 +21,6 @@ func logAsPrettyJSON(label string, data interface{}) {
 	log.Printf("%s:\n%s", label, string(jsonBytes))
 }
 
-// prints raw JSON, essentially a webhook endpoint to view payloads
 func HandleRawData() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logAsPrettyJSON("Headers", c.Request.Header)

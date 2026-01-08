@@ -3,6 +3,7 @@ package server
 import (
 	"database/sql"
 	"effective-invention/server/pgdb"
+	"effective-invention/server/pgdb/jwt"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +18,12 @@ func ServeGin() {
 	r := gin.Default()
 
 	db = pgdb.PostGres()
+	pgdb.CreateUsersTable(db)
 
+	protected := r.Group("/api")
+	protected.Use(jwt.JWTMiddleware())
+	addOpenRoutes(r, db)
+	addProtectedRoutes(protected, db)
 	AddTestEndpoints(r)
 
 	// Start server on port 8080 (default)
