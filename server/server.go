@@ -18,9 +18,7 @@ func ServeGin() {
 
 	db = pgdb.PostGres()
 
-	r.GET("/health", func(c *gin.Context) {
-		c.Status(200)
-	})
+	AddTestEndpoints(r)
 
 	// Start server on port 8080 (default)
 	// Server will listen on 0.0.0.0:8080 (localhost:8080 on Windows)
