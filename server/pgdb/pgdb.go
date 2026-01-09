@@ -15,7 +15,6 @@ func PostGres() *sql.DB {
 		log.Fatal("Error opening db: ", err)
 		return nil
 	}
-	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {

@@ -9,15 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var db *sql.DB
-
-func ServeGin() {
+func ServeGin(db *sql.DB) {
 
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.Default()
 
-	db = pgdb.PostGres()
 	pgdb.CreateUsersTable(db)
 
 	protected := r.Group("/api")

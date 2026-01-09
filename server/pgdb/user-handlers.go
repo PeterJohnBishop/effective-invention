@@ -4,9 +4,10 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"effective-invention/server/pgdb/jwt"
-	"encoding/binary"
+	"encoding/base32"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -38,7 +39,8 @@ func CreateUsersTable(db *sql.DB) error {
 
 func GenerateUserID(email string) string {
 	hash := sha256.Sum256([]byte(email))
-	return fmt.Sprintf("user_%d", binary.BigEndian.Uint64(hash[:8]))
+	id := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash[:5])
+	return strings.ToLower(id)
 }
 
 func HashedPassword(password string) (string, error) {
