@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"effective-invention/server/cuapi"
 	"effective-invention/server/pgdb"
 	"effective-invention/server/pgdb/jwt"
 	"log"
@@ -15,12 +16,15 @@ func ServeGin(db *sql.DB) {
 
 	r := gin.Default()
 
+	cuapi.ConnectClickUp()
+
 	pgdb.CreateUsersTable(db)
 
 	protected := r.Group("/api")
 	protected.Use(jwt.JWTMiddleware())
 	addOpenRoutes(r, db)
 	addProtectedRoutes(protected, db)
+	addClickUpRoutes(r)
 	AddTestEndpoints(r)
 
 	// Start server on port 8080 (default)

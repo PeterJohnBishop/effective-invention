@@ -21,7 +21,7 @@ func logAsPrettyJSON(label string, data interface{}) {
 	log.Printf("%s:\n%s", label, string(jsonBytes))
 }
 
-func HandleRawData() gin.HandlerFunc {
+func HandleRawDataReturn() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logAsPrettyJSON("Headers", c.Request.Header)
 		bodyBytes, _ := io.ReadAll(c.Request.Body)
