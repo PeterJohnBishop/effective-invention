@@ -1,36 +1,38 @@
 package server
 
 import (
-	"database/sql"
-	"effective-invention/server/cuapi"
-	"effective-invention/server/pgdb"
-	"effective-invention/server/pgdb/jwt"
+	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-func ServeGin(db *sql.DB) {
-
-	gin.SetMode(gin.ReleaseMode)
+func ServeGin() {
+	log.Println("Pouring Gin")
 
 	r := gin.Default()
-
-	cuapi.ConnectClickUp()
-
-	pgdb.CreateUsersTable(db)
-
-	protected := r.Group("/api")
-	protected.Use(jwt.JWTMiddleware())
-	addOpenRoutes(r, db)
-	addProtectedRoutes(protected, db)
-	addClickUpRoutes(r)
-	AddTestEndpoints(r)
-
-	// Start server on port 8080 (default)
-	// Server will listen on 0.0.0.0:8080 (localhost:8080 on Windows)
-	log.Println("Serving Postgres over Gin at localhost:8080.")
-	if err := r.Run(); err != nil {
-		log.Fatalf("failed to run server: %v", err)
-	}
+	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
+			param.ClientIP,
+			param.TimeStamp.Format(time.RFC1123),
+			param.Method,
+			param.Path,
+			param.Request.Proto,
+			param.StatusCode,
+			param.Latency,
+			param.Request.UserAgent(),
+			param.ErrorMessage,
+		)
+	}))
+	r.Use(gin.Recovery())
+	r.GET("/ping", func(c *gin.Context) {
+		c.String(200, "pong")
+	})
+	baseUrl := os.Getenv("BASE_URL")
+	port := os.Getenv("PORT")
+	config := fmt.Sprintf(":%s", port)
+	log.Printf("Serving Gin on %s%s", baseUrl, port)
+	r.Run(config)
 }
