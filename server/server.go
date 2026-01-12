@@ -1,7 +1,6 @@
 package server
 
 import (
-	"effective-invention/server/github"
 	"fmt"
 	"log"
 	"os"
@@ -29,12 +28,10 @@ func ServeGin() {
 	}))
 	r.Use(gin.Recovery())
 
-	github.GetGit()
-
 	r.GET("/ping", func(c *gin.Context) {
-		github.GetUserRepos("PeterJohnBishop")
 		c.String(200, "pong")
 	})
+
 	baseUrl := os.Getenv("BASE_URL")
 	port := os.Getenv("PORT")
 	config := fmt.Sprintf(":%s", port)
