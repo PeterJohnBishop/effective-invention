@@ -14,7 +14,7 @@ import (
 var aws_client aws.Config
 
 func ServeGin() {
-	log.Println("Orderings Gin")
+	log.Println("Ordering Gin")
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
@@ -32,18 +32,19 @@ func ServeGin() {
 	}))
 	r.Use(gin.Recovery())
 
-	aws_config := amazonwebservices.StartAws()
-	s3_client := amazonwebservices.ConnectS3(aws_config)
-	log.Println(s3_client)
-
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(200, "pong")
 	})
+
+	aws_config := amazonwebservices.StartAws()
+	s3_client := amazonwebservices.ConnectS3(aws_config)
 	addS3Routes(s3_client, r)
+	dynamodb_client := amazonwebservices.ConnectDB(aws_config)
+	addDynamoDbRoutes(dynamodb_client, r)
 
 	baseUrl := os.Getenv("BASE_URL")
 	port := os.Getenv("PORT")
 	config := fmt.Sprintf(":%s", port)
-	log.Printf("Serving Gin ats %s:%s", baseUrl, port)
+	log.Printf("Serving Gin at %s:%s", baseUrl, port)
 	r.Run(config)
 }
