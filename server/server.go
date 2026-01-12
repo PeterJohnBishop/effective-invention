@@ -1,13 +1,17 @@
 package server
 
 import (
+	"effective-invention/server/amazonwebservices"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gin-gonic/gin"
 )
+
+var aws_client aws.Config
 
 func ServeGin() {
 	log.Println("Orderings Gin")
@@ -28,9 +32,14 @@ func ServeGin() {
 	}))
 	r.Use(gin.Recovery())
 
+	aws_config := amazonwebservices.StartAws()
+	s3_client := amazonwebservices.ConnectS3(aws_config)
+	log.Println(s3_client)
+
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(200, "pong")
 	})
+	addS3Routes(s3_client, r)
 
 	baseUrl := os.Getenv("BASE_URL")
 	port := os.Getenv("PORT")
