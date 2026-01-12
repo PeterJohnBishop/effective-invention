@@ -105,13 +105,7 @@ func HandleUserCreation(client *dynamodb.Client) gin.HandlerFunc {
 			"user":    newUser,
 		}
 
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, jsonResponse)
+		c.JSON(http.StatusOK, response)
 	}
 }
 
@@ -132,12 +126,15 @@ func HandleAuthentication(client *dynamodb.Client) gin.HandlerFunc {
 
 		user, err := database.GetUserByEmail(client, "users", req.Email)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "User not found or database error",
+			})
+			return
 		}
 
 		pass := auth.CheckPasswordHash(req.Password, user.Password)
 		if !pass {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}
 
@@ -170,13 +167,7 @@ func HandleAuthentication(client *dynamodb.Client) gin.HandlerFunc {
 			"user":          user,
 		}
 
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, jsonResponse)
+		c.JSON(http.StatusOK, response)
 
 	}
 }
@@ -220,13 +211,7 @@ func HandleGetAllUsers(client *dynamodb.Client) gin.HandlerFunc {
 			"users":   users,
 		}
 
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, jsonResponse)
+		c.JSON(http.StatusOK, response)
 	}
 }
 
@@ -266,13 +251,8 @@ func HandleGetUserById(client *dynamodb.Client) gin.HandlerFunc {
 			"user":    user,
 		}
 
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+		c.JSON(http.StatusOK, response)
 
-		c.JSON(http.StatusOK, jsonResponse)
 	}
 }
 
@@ -312,13 +292,8 @@ func HandleUpdateUser(client *dynamodb.Client) gin.HandlerFunc {
 			"message": "User Updated!",
 		}
 
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+		c.JSON(http.StatusOK, response)
 
-		c.JSON(http.StatusOK, jsonResponse)
 	}
 }
 
@@ -365,13 +340,8 @@ func HandleUpdateUserPassword(client *dynamodb.Client) gin.HandlerFunc {
 			"message": "User Password Updated!",
 		}
 
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+		c.JSON(http.StatusOK, response)
 
-		c.JSON(http.StatusOK, jsonResponse)
 	}
 }
 
@@ -404,12 +374,7 @@ func HandleDeleteUserById(client *dynamodb.Client) gin.HandlerFunc {
 			"message": "User Updated!",
 		}
 
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+		c.JSON(http.StatusOK, response)
 
-		c.JSON(http.StatusOK, jsonResponse)
 	}
 }
