@@ -56,7 +56,7 @@ func HandleFileUpload(client *s3.Client) gin.HandlerFunc {
 	}
 }
 
-func HandleFileDOwnload(client *s3.Client) gin.HandlerFunc {
+func HandleFileDOwnloadLink(client *s3.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -91,6 +91,33 @@ func HandleFileDOwnload(client *s3.Client) gin.HandlerFunc {
 			"expires": "5 minutes",
 			"url":     url,
 		})
+	}
+}
+
+func HandleFileDownloadStream(client *s3.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
+		filename := c.Param("filename")
+
+		err := StreamDownloadFile(c, client, filename)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 	}
 }
 

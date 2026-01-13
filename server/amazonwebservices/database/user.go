@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -11,6 +12,59 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
+
+func CreateUsersTable(client *dynamodb.Client, tableName string) error {
+
+	_, err := client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
+		TableName: aws.String(tableName),
+	})
+	if err == nil {
+		return nil
+	}
+
+	var notFound *types.ResourceNotFoundException
+	if !errors.As(err, &notFound) {
+		return fmt.Errorf("error checking table existence: %w", err)
+	}
+
+	fmt.Println("Users table not found — creating now...")
+
+	_, err = client.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
+		TableName: aws.String(tableName),
+		AttributeDefinitions: []types.AttributeDefinition{
+			{
+				AttributeName: aws.String("id"),
+				AttributeType: types.ScalarAttributeTypeS,
+			},
+			{
+				AttributeName: aws.String("email"),
+				AttributeType: types.ScalarAttributeTypeS,
+			},
+		},
+		KeySchema: []types.KeySchemaElement{
+			{
+				AttributeName: aws.String("id"),
+				KeyType:       types.KeyTypeHash, // Primary Key
+			},
+		},
+		GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+			{
+				IndexName: aws.String("email-index"), // Name of the GSI
+				KeySchema: []types.KeySchemaElement{
+					{
+						AttributeName: aws.String("email"),
+						KeyType:       types.KeyTypeHash, // Partition Key for GSI
+					},
+				},
+				Projection: &types.Projection{
+					ProjectionType: types.ProjectionTypeAll, // include all attributes
+				},
+			},
+		},
+		BillingMode: types.BillingModePayPerRequest,
+	})
+	return err
+}
 
 func CreateUser(client *dynamodb.Client, tableName string, item map[string]types.AttributeValue) error {
 	_, err := client.PutItem(context.TODO(), &dynamodb.PutItemInput{

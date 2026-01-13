@@ -10,7 +10,8 @@ import (
 
 func addS3Routes(client *s3.Client, r *gin.Engine) {
 	r.POST("/upload", amazonwebservices.HandleFileUpload(client))
-	r.GET("/download/:filename", amazonwebservices.HandleFileDOwnload(client))
+	r.GET("/download/link/:filename", amazonwebservices.HandleFileDOwnloadLink(client))
+	r.GET("/download/:filename")
 }
 
 func addDynamoDbRoutes(client *dynamodb.Client, r *gin.Engine) {
