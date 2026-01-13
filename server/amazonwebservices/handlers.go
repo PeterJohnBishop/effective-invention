@@ -20,6 +20,22 @@ import (
 
 func HandleFileUpload(client *s3.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
 		file, header, err := c.Request.FormFile("file") // "file" is the key in the form-data
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get file from request"})
@@ -42,6 +58,22 @@ func HandleFileUpload(client *s3.Client) gin.HandlerFunc {
 
 func HandleFileDOwnload(client *s3.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
 		filename := c.Param("filename")
 		if filename == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
@@ -125,7 +157,7 @@ func HandleAuthentication(client *dynamodb.Client) gin.HandlerFunc {
 		defer c.Request.Body.Close()
 
 		user, err := database.GetUserByEmail(client, "users", req.Email)
-		if err != nil {
+		if err != nil || user == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "User not found or database error",
 			})
@@ -150,13 +182,17 @@ func HandleAuthentication(client *dynamodb.Client) gin.HandlerFunc {
 
 		token, err := auth.NewAccessToken(userClaims)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Error generating access token",
+			})
 			return
 		}
 
 		refreshToken, err := auth.NewRefreshToken(userClaims.StandardClaims)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Error generating refresh token",
+			})
 			return
 		}
 
@@ -371,7 +407,7 @@ func HandleDeleteUserById(client *dynamodb.Client) gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"message": "User Updated!",
+			"message": "User Deleted!",
 		}
 
 		c.JSON(http.StatusOK, response)

@@ -133,7 +133,7 @@ func UpdatePassword(client *dynamodb.Client, tableName string, user User) error 
 	updateBuilder := expression.UpdateBuilder{}
 	updatedFields := 0 // Track the number of fields updated
 
-	if user.Name != "" {
+	if user.Password != "" {
 		updateBuilder = updateBuilder.Set(expression.Name("password"), expression.Value(user.Password))
 		updatedFields++
 	}
