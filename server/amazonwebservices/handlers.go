@@ -43,7 +43,7 @@ func HandleFileUpload(client *s3.Client) gin.HandlerFunc {
 		}
 		defer file.Close()
 
-		url, err := UploadFile(client, header.Filename, file)
+		err = StreamUploadFile(client, header.Filename, file)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -51,7 +51,6 @@ func HandleFileUpload(client *s3.Client) gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, gin.H{
 			"message": "File uploaded successfully",
-			"url":     url,
 		})
 	}
 }
@@ -80,7 +79,7 @@ func HandleFileDOwnloadLink(client *s3.Client) gin.HandlerFunc {
 			return
 		}
 
-		url, err := DownloadFile(client, filename)
+		url, err := GeneratePresignedDownloadURL(client, filename)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
