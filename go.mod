@@ -31,6 +31,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.30
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.8.30
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.53.6
+	github.com/aws/aws-sdk-go-v2/service/rekognition v1.51.16
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.95.1
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
