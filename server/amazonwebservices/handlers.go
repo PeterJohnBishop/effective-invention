@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
@@ -434,6 +435,80 @@ func HandleDeleteUserById(client *dynamodb.Client) gin.HandlerFunc {
 
 		response := map[string]interface{}{
 			"message": "User Deleted!",
+		}
+
+		c.JSON(http.StatusOK, response)
+
+	}
+}
+
+func HandleFacialAnalysis(client *rekognition.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file := c.Param("file")
+		fileKey := fmt.Sprintf("uploads/%s", file)
+
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
+		analysis, err := AnalyzeFace(client, fileKey)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		response := map[string]interface{}{
+			"message":  "Analysis completed",
+			"analysis": analysis,
+		}
+
+		c.JSON(http.StatusOK, response)
+
+	}
+}
+
+func HandleFacialComparison(client *rekognition.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sourceKey := c.Param("source")
+		targetKey := c.Param("target")
+
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
+		result, err := CompareTwoFaces(client, sourceKey, targetKey)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error comparing faces. No faces found?"})
+			return
+		}
+
+		response := map[string]interface{}{
+			"message":  "Comparison completed",
+			"analysis": result,
 		}
 
 		c.JSON(http.StatusOK, response)

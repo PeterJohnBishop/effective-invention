@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
@@ -34,12 +35,20 @@ type FaceAnalysis struct {
 	LandmarkCount int
 }
 
-func AnalyzeFace(client *rekognition.Client, bucketName, fileName string) ([]FaceAnalysis, error) {
+func AnalyzeFace(client *rekognition.Client, fileKey string) ([]FaceAnalysis, error) {
+	bucketName := os.Getenv("AWS_BUCKET_NAME")
+	region := os.Getenv("AWS_REGION")
+
+	// DEBUG LOGS
+	log.Printf("DEBUG: Looking in Bucket: %s", bucketName)
+	log.Printf("DEBUG: Looking for Key: %s", fileKey)
+	log.Printf("DEBUG: Using Region: %s", region)
+
 	input := &rekognition.DetectFacesInput{
 		Image: &types.Image{
 			S3Object: &types.S3Object{
 				Bucket: aws.String(bucketName),
-				Name:   aws.String("uploads/" + fileName),
+				Name:   aws.String(fileKey),
 			},
 		},
 		Attributes: []types.Attribute{types.AttributeAll},
@@ -88,17 +97,19 @@ type ComparisonResult struct {
 	UnmatchedCount int
 }
 
-func CompareTwoFaces(client *rekognition.Client, bucket, sourceKey, targetKey string) (ComparisonResult, error) {
+func CompareTwoFaces(client *rekognition.Client, sourceKey, targetKey string) (ComparisonResult, error) {
+	bucketName := os.Getenv("AWS_BUCKET_NAME")
+
 	input := &rekognition.CompareFacesInput{
 		SourceImage: &types.Image{
 			S3Object: &types.S3Object{
-				Bucket: aws.String(bucket),
+				Bucket: aws.String(bucketName),
 				Name:   aws.String(sourceKey),
 			},
 		},
 		TargetImage: &types.Image{
 			S3Object: &types.S3Object{
-				Bucket: aws.String(bucket),
+				Bucket: aws.String(bucketName),
 				Name:   aws.String(targetKey),
 			},
 		},

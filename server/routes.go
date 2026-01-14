@@ -4,6 +4,7 @@ import (
 	"effective-invention/server/amazonwebservices"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 )
@@ -22,4 +23,8 @@ func addDynamoDbRoutes(client *dynamodb.Client, r *gin.Engine) {
 	r.PUT("/users/update", amazonwebservices.HandleUpdateUser(client))
 	r.PUT("/users/update/password", amazonwebservices.HandleUpdateUserPassword(client))
 	r.DELETE("/users/id/:id", amazonwebservices.HandleDeleteUserById(client))
+}
+
+func addRekognitionRoutes(client *rekognition.Client, r *gin.Engine) {
+	r.GET("/analysis/:file", amazonwebservices.HandleFacialAnalysis(client))
 }
