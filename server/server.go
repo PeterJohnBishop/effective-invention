@@ -39,16 +39,16 @@ func ServeGin() {
 
 	aws_config := amazonwebservices.StartAws()
 
-	s3_client := amazonwebservices.ConnectS3(aws_config)
-	addS3Routes(s3_client, r)
-
-	rekognition_client := amazonwebservices.ConnectRekognition(aws_config)
-	addRekognitionRoutes(rekognition_client, r)
-
 	dynamodb_client := amazonwebservices.ConnectDB(aws_config)
 	database.CreateFilesTable(dynamodb_client, "files")
 	database.CreateUsersTable(dynamodb_client, "users")
 	addDynamoDbRoutes(dynamodb_client, r)
+
+	s3_client := amazonwebservices.ConnectS3(aws_config)
+	addS3Routes(s3_client, dynamodb_client, r)
+
+	rekognition_client := amazonwebservices.ConnectRekognition(aws_config)
+	addRekognitionRoutes(rekognition_client, r)
 
 	baseUrl := os.Getenv("BASE_URL")
 	port := os.Getenv("PORT")

@@ -515,3 +515,60 @@ func HandleFacialComparison(client *rekognition.Client) gin.HandlerFunc {
 
 	}
 }
+
+func HandleUploadUserFile(dynamodb_client *dynamodb.Client, s3_client *s3.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
+		file, header, err := c.Request.FormFile("file") // "file" is the key in the form-data
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get file from request"})
+			return
+		}
+		defer file.Close()
+
+		err = StreamUploadFile(s3_client, header.Filename, file)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		fileKey := fmt.Sprintf("uploads/%s", header.Filename)
+		userId := claims.ID
+
+		id, err := uuid.NewV1()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		fileId := fmt.Sprintf("FILE_%s", id)
+
+		saveErr := database.CreateFile(dynamodb_client, "files", fileId, fileKey, userId)
+		if saveErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error saving file record."})
+			return
+		}
+
+		response := map[string]interface{}{
+			"message": "file saved",
+		}
+
+		c.JSON(http.StatusOK, response)
+
+	}
+}

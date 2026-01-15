@@ -9,10 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func addS3Routes(client *s3.Client, r *gin.Engine) {
-	r.POST("/upload", amazonwebservices.HandleFileUpload(client))
-	r.GET("/download/link/:filename", amazonwebservices.HandleFileDOwnloadLink(client))
-	r.GET("/download/:filename", amazonwebservices.HandleFileDownloadStream(client))
+func addS3Routes(s3client *s3.Client, dynamodbClient *dynamodb.Client, r *gin.Engine) {
+	r.POST("/upload", amazonwebservices.HandleFileUpload(s3client))
+	r.GET("/download/link/:filename", amazonwebservices.HandleFileDOwnloadLink(s3client))
+	r.GET("/download/:filename", amazonwebservices.HandleFileDownloadStream(s3client))
+	r.POST("/user/upload", amazonwebservices.HandleUploadUserFile(dynamodbClient, s3client))
 }
 
 func addDynamoDbRoutes(client *dynamodb.Client, r *gin.Engine) {
