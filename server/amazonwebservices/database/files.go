@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -45,7 +46,7 @@ func CreateFilesTable(client *dynamodb.Client, tableName string) error {
 			},
 			{
 				AttributeName: aws.String("createdAt"),
-				AttributeType: types.ScalarAttributeTypeN, // Sort Key (allows chronological sorting)
+				AttributeType: types.ScalarAttributeTypeN,
 			},
 		},
 		KeySchema: []types.KeySchemaElement{
@@ -56,31 +57,31 @@ func CreateFilesTable(client *dynamodb.Client, tableName string) error {
 		},
 		GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
 			{
-				IndexName: aws.String("user-index"), // Name of the GSI
+				IndexName: aws.String("user-index"),
 				KeySchema: []types.KeySchemaElement{
 					{
 						AttributeName: aws.String("user"),
-						KeyType:       types.KeyTypeHash, // Partition Key for GSI
+						KeyType:       types.KeyTypeHash,
 					},
 					{
 						AttributeName: aws.String("createdAt"),
-						KeyType:       types.KeyTypeRange, // Sort Key (allows chronological sorting)
+						KeyType:       types.KeyTypeRange,
 					},
 				},
 				Projection: &types.Projection{
-					ProjectionType: types.ProjectionTypeAll, // include all attributes
+					ProjectionType: types.ProjectionTypeAll,
 				},
 			},
 			{
-				IndexName: aws.String("fileKey-index"), // Name of the GSI
+				IndexName: aws.String("fileKey-index"),
 				KeySchema: []types.KeySchemaElement{
 					{
 						AttributeName: aws.String("fileKey"),
-						KeyType:       types.KeyTypeHash, // Partition Key for GSI
+						KeyType:       types.KeyTypeHash,
 					},
 				},
 				Projection: &types.Projection{
-					ProjectionType: types.ProjectionTypeAll, // include all attributes
+					ProjectionType: types.ProjectionTypeAll,
 				},
 			},
 		},
@@ -137,6 +138,55 @@ func GetFile(client *dynamodb.Client, tableName, id string) (map[string]types.At
 	return out.Item, nil
 }
 
+func ListFiles(client *dynamodb.Client, tableName string) ([]map[string]types.AttributeValue, error) {
+	out, err := client.Scan(context.TODO(), &dynamodb.ScanInput{
+		TableName: aws.String(tableName),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list files: %w", err)
+	}
+
+	return out.Items, nil
+}
+
+func ListFilesByUserSorted(client *dynamodb.Client, tableName string, userId string) ([]UserFile, error) {
+	var allItems []map[string]types.AttributeValue
+	var lastEvaluatedKey map[string]types.AttributeValue
+
+	for {
+		input := &dynamodb.QueryInput{
+			TableName:                aws.String(tableName),
+			IndexName:                aws.String("user-index"),
+			KeyConditionExpression:   aws.String("#u = :userVal"),
+			ExpressionAttributeNames: map[string]string{"#u": "user"},
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":userVal": &types.AttributeValueMemberS{Value: userId},
+			},
+			ScanIndexForward:  aws.Bool(false),
+			ExclusiveStartKey: lastEvaluatedKey,
+		}
+
+		out, err := client.Query(context.TODO(), input)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, out.Items...)
+		if out.LastEvaluatedKey == nil {
+			break
+		}
+		lastEvaluatedKey = out.LastEvaluatedKey
+	}
+
+	var files []UserFile
+	err := attributevalue.UnmarshalListOfMaps(allItems, &files)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal results: %w", err)
+	}
+
+	return files, nil
+}
+
 func DeleteFile(client *dynamodb.Client, tableName, id string) error {
 	_, err := client.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
 		TableName: aws.String(tableName),
@@ -150,15 +200,4 @@ func DeleteFile(client *dynamodb.Client, tableName, id string) error {
 
 	fmt.Println("🗑️ File deleted:", id)
 	return nil
-}
-
-func ListFiles(client *dynamodb.Client, tableName string) ([]map[string]types.AttributeValue, error) {
-	out, err := client.Scan(context.TODO(), &dynamodb.ScanInput{
-		TableName: aws.String(tableName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list files: %w", err)
-	}
-
-	return out.Items, nil
 }

@@ -24,6 +24,8 @@ func addDynamoDbRoutes(client *dynamodb.Client, r *gin.Engine) {
 	r.PUT("/users/update", amazonwebservices.HandleUpdateUser(client))
 	r.PUT("/users/update/password", amazonwebservices.HandleUpdateUserPassword(client))
 	r.DELETE("/users/id/:id", amazonwebservices.HandleDeleteUserById(client))
+
+	r.GET("/users/files", amazonwebservices.HandleGetUserFiles(client))
 }
 
 func addRekognitionRoutes(client *rekognition.Client, r *gin.Engine) {

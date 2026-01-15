@@ -1,17 +1,17 @@
 package database
 
 type User struct {
-	ID        string `dynamodbav:"id"`
-	Name      string `dynamodbav:"name"`
-	Email     string `dynamodbav:"email"`
-	Password  string `dynamodbav:"password"`
-	CreatedAt int64  `dynamodbav:"createdAt"`
-	UpdatedAt int64  `dynamodbav:"updatedAt"`
+	ID        string `json:"id" dynamodbav:"id"`
+	Name      string `json:"name" dynamodbav:"name"`
+	Email     string `json:"email" dynamodbav:"email"`
+	Password  string `json:"-" dynamodbav:"password"` // "-" hides password from JSON responses
+	CreatedAt int64  `json:"createdAt" dynamodbav:"createdAt"`
+	UpdatedAt int64  `json:"updatedAt" dynamodbav:"updatedAt"`
 }
 
 type UserFile struct {
-	UserID    string `dynamodbav:"userId"` // partition key
-	ID        string `dynamodbav:"fileId"` // sort key
-	FileKey   string `dynamodbav:"fileKey"`
-	CreatedAt int64  `dynamodbav:"createdAt"`
+	User      string `json:"user" dynamodbav:"user"` // partition key
+	ID        string `json:"id" dynamodbav:"id"`     // sort key
+	FileKey   string `json:"filekey" dynamodbav:"fileKey"`
+	CreatedAt int64  `json:"createdAt" dynamodbav:"createdAt"`
 }

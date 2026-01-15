@@ -569,3 +569,40 @@ func HandleUploadUserFile(dynamodb_client *dynamodb.Client, s3_client *s3.Client
 
 	}
 }
+
+func HandleGetUserFiles(dynamodb_client *dynamodb.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
+		userId := claims.ID
+
+		var userFiles []database.UserFile
+		var err error
+		userFiles, err = database.ListFilesByUserSorted(dynamodb_client, "files", userId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving files."})
+			return
+		}
+
+		response := map[string]interface{}{
+			"message":   "user files found",
+			"userFiles": userFiles,
+		}
+
+		c.JSON(http.StatusOK, response)
+	}
+}
