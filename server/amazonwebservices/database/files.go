@@ -12,12 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-type UserFile struct {
-	UserID  string `dynamodbav:"userId"` // partition key
-	ID      string `dynamodbav:"fileId"` // sort key
-	FileKey string `dynamodbav:"fileKey"`
-}
-
 func CreateFilesTable(client *dynamodb.Client, tableName string) error {
 
 	_, err := client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{

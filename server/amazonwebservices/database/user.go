@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -13,8 +15,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-func CreateUsersTable(client *dynamodb.Client, tableName string) error {
+func currentTimestamp() string {
+	return strconv.FormatInt(time.Now().Unix(), 10)
+}
 
+func CreateUsersTable(client *dynamodb.Client, tableName string) error {
 	_, err := client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
 		TableName: aws.String(tableName),
 	})
@@ -32,32 +37,22 @@ func CreateUsersTable(client *dynamodb.Client, tableName string) error {
 	_, err = client.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
 		TableName: aws.String(tableName),
 		AttributeDefinitions: []types.AttributeDefinition{
-			{
-				AttributeName: aws.String("id"),
-				AttributeType: types.ScalarAttributeTypeS,
-			},
-			{
-				AttributeName: aws.String("email"),
-				AttributeType: types.ScalarAttributeTypeS,
-			},
+			{AttributeName: aws.String("id"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: aws.String("email"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: aws.String("createdAt"), AttributeType: types.ScalarAttributeTypeN},
 		},
 		KeySchema: []types.KeySchemaElement{
-			{
-				AttributeName: aws.String("id"),
-				KeyType:       types.KeyTypeHash, // Primary Key
-			},
+			{AttributeName: aws.String("id"), KeyType: types.KeyTypeHash},
 		},
 		GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
 			{
-				IndexName: aws.String("email-index"), // Name of the GSI
+				IndexName: aws.String("email-index"),
 				KeySchema: []types.KeySchemaElement{
-					{
-						AttributeName: aws.String("email"),
-						KeyType:       types.KeyTypeHash, // Partition Key for GSI
-					},
+					{AttributeName: aws.String("email"), KeyType: types.KeyTypeHash},
+					{AttributeName: aws.String("createdAt"), KeyType: types.KeyTypeRange}, // Only ONE sort key allowed
 				},
 				Projection: &types.Projection{
-					ProjectionType: types.ProjectionTypeAll, // include all attributes
+					ProjectionType: types.ProjectionTypeAll,
 				},
 			},
 		},
@@ -66,10 +61,18 @@ func CreateUsersTable(client *dynamodb.Client, tableName string) error {
 	return err
 }
 
-func CreateUser(client *dynamodb.Client, tableName string, item map[string]types.AttributeValue) error {
+func CreateUser(client *dynamodb.Client, tableName string, id, name, email, password string) error {
+	now := currentTimestamp()
 	_, err := client.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: aws.String(tableName),
-		Item:      item,
+		Item: map[string]types.AttributeValue{
+			"id":        &types.AttributeValueMemberS{Value: id},
+			"name":      &types.AttributeValueMemberS{Value: name},
+			"email":     &types.AttributeValueMemberS{Value: strings.ToLower(email)},
+			"password":  &types.AttributeValueMemberS{Value: password},
+			"createdAt": &types.AttributeValueMemberN{Value: now},
+			"updatedAt": &types.AttributeValueMemberN{Value: now},
+		},
 	})
 	return err
 }
@@ -143,26 +146,19 @@ func GetUserByEmail(client *dynamodb.Client, tableName, email string) (*User, er
 
 func UpdateUser(client *dynamodb.Client, tableName string, user User) error {
 	updateBuilder := expression.UpdateBuilder{}
-	updatedFields := 0 // Track the number of fields updated
+
+	// Always update the updatedAt timestamp
+	updateBuilder = updateBuilder.Set(expression.Name("updatedAt"), expression.Value(currentTimestamp()))
 
 	if user.Name != "" {
 		updateBuilder = updateBuilder.Set(expression.Name("name"), expression.Value(user.Name))
-		updatedFields++
 	}
 	if user.Email != "" {
-		updateBuilder = updateBuilder.Set(expression.Name("email"), expression.Value(user.Email))
-		updatedFields++
-	}
-
-	// Ensure at least one field is being updated
-	if updatedFields == 0 {
-		fmt.Println("No fields to update")
-		return fmt.Errorf("must update at least one field")
+		updateBuilder = updateBuilder.Set(expression.Name("email"), expression.Value(strings.ToLower(user.Email)))
 	}
 
 	expr, err := expression.NewBuilder().WithUpdate(updateBuilder).Build()
 	if err != nil {
-		fmt.Println("Error in expression builder:", err)
 		return err
 	}
 
@@ -176,31 +172,16 @@ func UpdateUser(client *dynamodb.Client, tableName string, user User) error {
 		UpdateExpression:          expr.Update(),
 		ReturnValues:              types.ReturnValueUpdatedNew,
 	})
-
-	if err != nil {
-		fmt.Println("Error in client updater:", err)
-	}
 	return err
 }
 
 func UpdatePassword(client *dynamodb.Client, tableName string, user User) error {
-	updateBuilder := expression.UpdateBuilder{}
-	updatedFields := 0 // Track the number of fields updated
+	now := currentTimestamp()
+	update := expression.Set(expression.Name("password"), expression.Value(user.Password)).
+		Set(expression.Name("updatedAt"), expression.Value(now))
 
-	if user.Password != "" {
-		updateBuilder = updateBuilder.Set(expression.Name("password"), expression.Value(user.Password))
-		updatedFields++
-	}
-
-	// Ensure at least one field is being updated
-	if updatedFields == 0 {
-		fmt.Println("No fields to update")
-		return fmt.Errorf("must update at least one field")
-	}
-
-	expr, err := expression.NewBuilder().WithUpdate(updateBuilder).Build()
+	expr, err := expression.NewBuilder().WithUpdate(update).Build()
 	if err != nil {
-		fmt.Println("Error in expression builder:", err)
 		return err
 	}
 
@@ -214,10 +195,6 @@ func UpdatePassword(client *dynamodb.Client, tableName string, user User) error 
 		UpdateExpression:          expr.Update(),
 		ReturnValues:              types.ReturnValueUpdatedNew,
 	})
-
-	if err != nil {
-		fmt.Println("Error in client updater:", err)
-	}
 	return err
 }
 

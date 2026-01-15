@@ -11,7 +11,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
@@ -124,47 +123,45 @@ func HandleFileDownloadStream(client *s3.Client) gin.HandlerFunc {
 func HandleUserCreation(client *dynamodb.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var user database.User
-		err := json.NewDecoder(c.Request.Body).Decode(&user)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		defer c.Request.Body.Close()
-
-		id, err := uuid.NewV1()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if err := c.ShouldBindJSON(&user); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 			return
 		}
 
-		email := strings.ToLower(user.Email)
-
-		userId := fmt.Sprintf("USER_%s", id)
+		u, err := uuid.NewV1()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate ID"})
+			return
+		}
+		userId := fmt.Sprintf("USER_%s", u.String())
 
 		hashedPassword, err := auth.HashedPassword(user.Password)
 		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to secure password"})
 			return
 		}
 
-		newUser := map[string]types.AttributeValue{
-			"id":       &types.AttributeValueMemberS{Value: userId},
-			"name":     &types.AttributeValueMemberS{Value: user.Name},
-			"email":    &types.AttributeValueMemberS{Value: email},
-			"password": &types.AttributeValueMemberS{Value: hashedPassword},
-		}
-
-		err = database.CreateUser(client, "users", newUser)
+		err = database.CreateUser(
+			client,
+			"users",
+			userId,
+			user.Name,
+			user.Email,
+			hashedPassword,
+		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save user to database"})
 			return
 		}
 
-		response := map[string]interface{}{
-			"message": "User succesfully created",
-			"user":    newUser,
-		}
-
-		c.JSON(http.StatusOK, response)
+		c.JSON(http.StatusOK, gin.H{
+			"message": "User successfully created",
+			"user": gin.H{
+				"id":    userId,
+				"name":  user.Name,
+				"email": strings.ToLower(user.Email),
+			},
+		})
 	}
 }
 
