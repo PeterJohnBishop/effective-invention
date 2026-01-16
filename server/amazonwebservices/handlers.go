@@ -606,3 +606,52 @@ func HandleGetUserFiles(dynamodb_client *dynamodb.Client) gin.HandlerFunc {
 		c.JSON(http.StatusOK, response)
 	}
 }
+
+func HandleDeleteUserFileById(dynamodb_client *dynamodb.Client, s3_client *s3.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
+		var userFile *database.UserFile
+		var err error
+
+		userFile, err = database.GetFile(dynamodb_client, "files", id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		err = DeleteS3File(s3_client, userFile.FileKey)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		err = database.DeleteFile(dynamodb_client, "files", id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		response := map[string]interface{}{
+			"message": "File Deleted!",
+		}
+
+		c.JSON(http.StatusOK, response)
+
+	}
+}

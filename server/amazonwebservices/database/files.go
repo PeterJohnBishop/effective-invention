@@ -120,22 +120,29 @@ func CreateFile(client *dynamodb.Client, tableName, id, fileKey, user string) er
 	return nil
 }
 
-func GetFile(client *dynamodb.Client, tableName, id string) (map[string]types.AttributeValue, error) {
+func GetFile(client *dynamodb.Client, tableName, id string) (*UserFile, error) {
 	out, err := client.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]types.AttributeValue{
 			"id": &types.AttributeValueMemberS{Value: id},
 		},
 	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file: %w", err)
+		return nil, fmt.Errorf("dynamodb error: %w", err)
 	}
 
 	if out.Item == nil {
-		return nil, fmt.Errorf("file not found: %s", id)
+		return nil, nil
 	}
 
-	return out.Item, nil
+	var file UserFile
+	err = attributevalue.UnmarshalMap(out.Item, &file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal file: %w", err)
+	}
+
+	return &file, nil
 }
 
 func ListFiles(client *dynamodb.Client, tableName string) ([]map[string]types.AttributeValue, error) {

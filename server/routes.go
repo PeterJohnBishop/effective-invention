@@ -16,16 +16,17 @@ func addS3Routes(s3client *s3.Client, dynamodbClient *dynamodb.Client, r *gin.En
 	r.POST("/user/upload", amazonwebservices.HandleUploadUserFile(dynamodbClient, s3client))
 }
 
-func addDynamoDbRoutes(client *dynamodb.Client, r *gin.Engine) {
-	r.POST("/users/new", amazonwebservices.HandleUserCreation(client))
-	r.POST("/users/login", amazonwebservices.HandleAuthentication(client))
-	r.GET("/users/all", amazonwebservices.HandleGetAllUsers(client))
-	r.GET("/users/id/:id", amazonwebservices.HandleGetUserById(client))
-	r.PUT("/users/update", amazonwebservices.HandleUpdateUser(client))
-	r.PUT("/users/update/password", amazonwebservices.HandleUpdateUserPassword(client))
-	r.DELETE("/users/id/:id", amazonwebservices.HandleDeleteUserById(client))
+func addDynamoDbRoutes(s3client *s3.Client, dynamodbClient *dynamodb.Client, r *gin.Engine) {
+	r.POST("/users/new", amazonwebservices.HandleUserCreation(dynamodbClient))
+	r.POST("/users/login", amazonwebservices.HandleAuthentication(dynamodbClient))
+	r.GET("/users/all", amazonwebservices.HandleGetAllUsers(dynamodbClient))
+	r.GET("/users/id/:id", amazonwebservices.HandleGetUserById(dynamodbClient))
+	r.PUT("/users/update", amazonwebservices.HandleUpdateUser(dynamodbClient))
+	r.PUT("/users/update/password", amazonwebservices.HandleUpdateUserPassword(dynamodbClient))
+	r.DELETE("/users/id/:id", amazonwebservices.HandleDeleteUserById(dynamodbClient))
 
-	r.GET("/users/files", amazonwebservices.HandleGetUserFiles(client))
+	r.GET("/users/files", amazonwebservices.HandleGetUserFiles(dynamodbClient))
+	r.DELETE("/users/files/:id", amazonwebservices.HandleDeleteUserFileById(dynamodbClient, s3client))
 }
 
 func addRekognitionRoutes(client *rekognition.Client, r *gin.Engine) {
