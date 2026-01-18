@@ -23,6 +23,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6 // indirect
 	github.com/aws/smithy-go v1.24.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/mdp/qrterminal/v3 v3.2.1 // indirect
+	github.com/xlzd/gotp v0.1.0 // indirect
+	golang.org/x/term v0.33.0 // indirect
+	rsc.io/qr v0.2.0 // indirect
 )
 
 require (
@@ -56,6 +61,7 @@ require (
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
 	github.com/resend/resend-go/v2 v2.28.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect

@@ -3,6 +3,7 @@ package server
 import (
 	"effective-invention/server/amazonwebservices"
 	"effective-invention/server/amazonwebservices/database"
+	"effective-invention/server/websocket"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,7 @@ import (
 )
 
 var aws_client aws.Config
+var hub *websocket.Hub
 
 func ServeGin() {
 	log.Println("Ordering Gin")
@@ -35,6 +37,12 @@ func ServeGin() {
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(200, "pong")
+	})
+
+	hub = websocket.NewHub()
+
+	r.GET("/ws", func(c *gin.Context) {
+		websocket.HandleWebsocket(hub, c)
 	})
 
 	aws_config := amazonwebservices.StartAws()

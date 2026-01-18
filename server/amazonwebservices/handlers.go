@@ -1,10 +1,12 @@
 package amazonwebservices
 
 import (
+	"bytes"
 	"effective-invention/server/amazonwebservices/auth"
 	"effective-invention/server/amazonwebservices/database"
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"net/http"
 	"strings"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"github.com/golang-jwt/jwt"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 func HandleFileUpload(client *s3.Client) gin.HandlerFunc {
@@ -79,11 +82,67 @@ func HandleFileDOwnloadLink(client *s3.Client) gin.HandlerFunc {
 			return
 		}
 
-		url, err := GeneratePresignedDownloadURL(client, filename)
+		fileKey := fmt.Sprintf("uploads/%s", filename)
+
+		url, err := GeneratePresignedDownloadURL(client, fileKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "File download link generated successfully",
+			"expires": "5 minutes",
+			"url":     url,
+		})
+	}
+}
+
+func HandleFileDOwnloadLinkQR(client *s3.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Auth header not found"})
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "API token error"})
+			return
+		}
+		claims := auth.ParseAccessToken(token)
+		if claims == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth token"})
+			return
+		}
+
+		filename := c.Param("filename")
+		if filename == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
+			return
+		}
+
+		fileKey := fmt.Sprintf("uploads/%s", filename)
+
+		url, err := GeneratePresignedDownloadURL(client, fileKey)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		qrImg, err := qrcode.New(url, qrcode.Medium)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate QR code"})
+			return
+		}
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, qrImg.Image(256)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encode QR image"})
+			return
+		}
+		c.Header("Content-Type", "image/png")
+		c.Header("Content-Disposition", "inline; filename=\"download_qr.png\"")
+		c.Writer.Write(buf.Bytes())
 
 		c.JSON(http.StatusOK, gin.H{
 			"message": "File download link generated successfully",
