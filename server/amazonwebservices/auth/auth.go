@@ -12,13 +12,32 @@ import (
 )
 
 func HashedPassword(password string) (string, error) {
-	hashedPassword, error := bcrypt.GenerateFromPassword([]byte(password), 10)
-	return string(hashedPassword), error
+	// Generate the hash
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Printf("LOG: Error while hashing password: %v\n", err)
+		return "", err
+	}
+
+	// Diagnostic Log (Remove in production!)
+	// fmt.Printf("LOG: Generated hash for input: %s\n", password)
+
+	return string(hashBytes), nil
 }
 
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
+
+	if err != nil {
+		// This log will tell you EXACTLY why it failed
+		// e.g., "crypto/bcrypt: hashedPassword is not the hash of the given password"
+		fmt.Printf("LOG: Password check failed: %v\n", err)
+		fmt.Printf("LOG: Attempted with hash: %s and password: %s\n", hash, password)
+		return false
+	}
+
+	fmt.Println("LOG: Password check successful")
+	return true
 }
 
 var (

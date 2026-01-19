@@ -61,20 +61,35 @@ func CreateUsersTable(client *dynamodb.Client, tableName string) error {
 	return err
 }
 
-func CreateUser(client *dynamodb.Client, tableName string, id, name, email, password string) error {
+func CreateUser(client *dynamodb.Client, tableName string, id, name, email, password string) (*User, error) {
 	now := currentTimestamp()
+	normalizedEmail := strings.ToLower(email)
+
 	_, err := client.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: aws.String(tableName),
 		Item: map[string]types.AttributeValue{
 			"id":        &types.AttributeValueMemberS{Value: id},
 			"name":      &types.AttributeValueMemberS{Value: name},
-			"email":     &types.AttributeValueMemberS{Value: strings.ToLower(email)},
+			"email":     &types.AttributeValueMemberS{Value: normalizedEmail},
 			"password":  &types.AttributeValueMemberS{Value: password},
 			"createdAt": &types.AttributeValueMemberN{Value: now},
 			"updatedAt": &types.AttributeValueMemberN{Value: now},
 		},
 	})
-	return err
+
+	if err != nil {
+		return nil, err
+	}
+
+	createdAtInt, _ := strconv.ParseInt(now, 10, 64)
+
+	return &User{
+		ID:        id,
+		Name:      name,
+		Email:     normalizedEmail,
+		CreatedAt: createdAtInt,
+		UpdatedAt: createdAtInt,
+	}, nil
 }
 
 func GetUserById(client *dynamodb.Client, tableName, id string) (map[string]types.AttributeValue, error) {

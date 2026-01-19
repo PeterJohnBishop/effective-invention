@@ -181,8 +181,14 @@ func HandleFileDownloadStream(client *s3.Client) gin.HandlerFunc {
 
 func HandleUserCreation(client *dynamodb.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var user database.User
-		if err := c.ShouldBindJSON(&user); err != nil {
+		type RegisterRequest struct {
+			Name     string `json:"name"`
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+
+		var req RegisterRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 			return
 		}
@@ -194,32 +200,31 @@ func HandleUserCreation(client *dynamodb.Client) gin.HandlerFunc {
 		}
 		userId := fmt.Sprintf("USER_%s", u.String())
 
-		hashedPassword, err := auth.HashedPassword(user.Password)
+		// 2. Hash the password from the request
+		hashedPassword, err := auth.HashedPassword(req.Password)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to secure password"})
 			return
 		}
 
-		err = database.CreateUser(
+		// 3. Create the user
+		createdUser, err := database.CreateUser(
 			client,
 			"users",
 			userId,
-			user.Name,
-			user.Email,
+			req.Name,
+			req.Email,
 			hashedPassword,
 		)
+
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save user to database"})
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"message": "User successfully created",
-			"user": gin.H{
-				"id":    userId,
-				"name":  user.Name,
-				"email": strings.ToLower(user.Email),
-			},
+			"message": "Success",
+			"user":    createdUser,
 		})
 	}
 }
@@ -247,9 +252,15 @@ func HandleAuthentication(client *dynamodb.Client) gin.HandlerFunc {
 			return
 		}
 
+		fmt.Printf("DEBUG: Login attempt for %s\n", req.Email)
+		fmt.Printf("DEBUG: Password from Request: %s\n", req.Password)
+		fmt.Printf("DEBUG: Password from Database Struct: %s\n", user.Password)
+
 		pass := auth.CheckPasswordHash(req.Password, user.Password)
 		if !pass {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid credentials",
+			})
 			return
 		}
 
@@ -280,7 +291,7 @@ func HandleAuthentication(client *dynamodb.Client) gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"message":       "Login Success",
+			"message":       "Success",
 			"token":         token,
 			"refresh_token": refreshToken,
 			"user":          user,
@@ -326,7 +337,7 @@ func HandleGetAllUsers(client *dynamodb.Client) gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"message": "Users Found!",
+			"message": "Success",
 			"users":   users,
 		}
 
@@ -366,7 +377,7 @@ func HandleGetUserById(client *dynamodb.Client) gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"message": "User Found!",
+			"message": "Success",
 			"user":    user,
 		}
 
@@ -408,7 +419,7 @@ func HandleUpdateUser(client *dynamodb.Client) gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"message": "User Updated!",
+			"message": "Success",
 		}
 
 		c.JSON(http.StatusOK, response)
@@ -456,7 +467,7 @@ func HandleUpdateUserPassword(client *dynamodb.Client) gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"message": "User Password Updated!",
+			"message": "Success",
 		}
 
 		c.JSON(http.StatusOK, response)
@@ -490,7 +501,7 @@ func HandleDeleteUserById(client *dynamodb.Client) gin.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"message": "User Deleted!",
+			"message": "Success",
 		}
 
 		c.JSON(http.StatusOK, response)
